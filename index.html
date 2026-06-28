@@ -57,7 +57,7 @@ canvas { display:block; width:100%; height:100%; }
 .car-card span  { font-size:.56rem; letter-spacing:2px; color:#aaa; }
 .car-card.sel span { color:#e8d5a3; }
 
-#trackGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; padding:4px; width:322px; }
+#trackGrid { display:grid; grid-template-columns:repeat(2,1fr); gap:7px; padding:4px; width:322px; }
 .track-card { background:#1a1a1a; border:2px solid #333; padding:5px 4px; cursor:pointer;
               transition:border-color .15s,background .15s;
               display:flex; flex-direction:column; align-items:center; gap:2px; }
@@ -275,9 +275,10 @@ const I18N={
     device:'CONTROLS', devicePC:'💻 Keyboard', deviceMobile:'📱 Touch', begin:'BEGIN',
     controlsTouch:'◀ ▶ steer &nbsp; ▲ gas &nbsp; ▼ brake &nbsp; ⚡ nitro (on-screen)',
     shareText:(name,score,track)=>`${name} scored ${score} on ${track} in Soviet Racer ☭ 3D — can you beat it?`,
-    tracks:{ steppe:{name:'STEPPE HIGHWAY',tag:'Flat · fast'},
-             ural:{name:'URAL MOUNTAINS',tag:'Steep · twisty'},
-             winter:{name:'WINTER PASS',tag:'Snow · sweeping'} },
+    tracks:{ steppe:{name:'STEPPE HIGHWAY',tag:'Flat · fast · 2-way'},
+             ural:{name:'URAL MOUNTAINS',tag:'Twisty · night rain'},
+             winter:{name:'WINTER PASS',tag:'Snow · dusk'},
+             city:{name:'CITY STREETS',tag:'Urban · junctions'} },
   },
   ru:{
     title:'СОВЕТСКИЙ ГОНЩИК 3D', subtitle:'КЛАССИЧЕСКИЕ СОВЕТСКИЕ АВТО',
@@ -300,9 +301,10 @@ const I18N={
     device:'УПРАВЛЕНИЕ', devicePC:'💻 Клавиатура', deviceMobile:'📱 Сенсор', begin:'НАЧАТЬ',
     controlsTouch:'◀ ▶ руль &nbsp; ▲ газ &nbsp; ▼ тормоз &nbsp; ⚡ нитро (на экране)',
     shareText:(name,score,track)=>`${name} набрал ${score} на трассе «${track}» в Soviet Racer ☭ 3D — побьёшь?`,
-    tracks:{ steppe:{name:'СТЕПНОЕ ШОССЕ',tag:'Ровно · быстро'},
-             ural:{name:'УРАЛЬСКИЕ ГОРЫ',tag:'Круто · извилисто'},
-             winter:{name:'ЗИМНИЙ ПЕРЕВАЛ',tag:'Снег · плавно'} },
+    tracks:{ steppe:{name:'СТЕПНОЕ ШОССЕ',tag:'Ровно · быстро · 2-стор'},
+             ural:{name:'УРАЛЬСКИЕ ГОРЫ',tag:'Извилисто · ночь · дождь'},
+             winter:{name:'ЗИМНИЙ ПЕРЕВАЛ',tag:'Снег · сумерки'},
+             city:{name:'ГОРОДСКИЕ УЛИЦЫ',tag:'Город · развязки'} },
   },
   ka:{
     title:'საბჭოთა მრბოლელი 3D', subtitle:'კლასიკური საბჭოთა მანქანები',
@@ -326,8 +328,9 @@ const I18N={
     controlsTouch:'◀ ▶ მართვა &nbsp; ▲ გაზი &nbsp; ▼ მუხრუჭი &nbsp; ⚡ ნიტრო (ეკრანზე)',
     shareText:(name,score,track)=>`${name}-მა დააგროვა ${score} მარშრუტზე „${track}“ Soviet Racer ☭ 3D-ში — სცადე გადააჭარბო!`,
     tracks:{ steppe:{name:'სტეპის გზა',tag:'ბრტყელი · სწრაფი'},
-             ural:{name:'ურალის მთები',tag:'ციცაბო · ხვეული'},
-             winter:{name:'ზამთრის უღელტეხილი',tag:'თოვლი · მოხვევები'} },
+             ural:{name:'ურალის მთები',tag:'ხვეული · ღამე · წვიმა'},
+             winter:{name:'ზამთრის უღელტეხილი',tag:'თოვლი · საღამო'},
+             city:{name:'ქალაქის ქუჩები',tag:'ქალაქი · გზაჯვარედინი'} },
   },
 };
 let currentLang='en';
@@ -428,7 +431,7 @@ function shadeHex(hex,amt){
 // brake: 0..1 → glowing brake lights (player) ; far/tiny cars fall back to a cheap sprite
 // front: true → draw it facing us (headlights + grille) for oncoming traffic
 function drawCarRear(c, cx, cy, scale, sc, lean=0, brake=0, front=false){
-  const w=78*scale*(sc.w||1), h=54*scale*(sc.h||1);
+  const w=84*scale*(sc.w||1), h=49*scale*(sc.h||1);   // wider + lower stance = sleeker
   const cab=sc.cab||0.80;
   const rnd=sc.feat==='round'?1.7:1;       // ZAZ gets rounder corners
   const detail = scale>0.34;               // full panel detail only when big enough on screen
@@ -465,24 +468,27 @@ function drawCarRear(c, cx, cy, scale, sc, lean=0, brake=0, front=false){
     c.globalAlpha=1;
   }
 
-  // ── cabin / roof with gradient ──
-  const rg=c.createLinearGradient(0,-h*0.62,0,-h*0.22);
-  rg.addColorStop(0, shadeHex(sc.roof,0.28)); rg.addColorStop(1, sc.roof);
+  // ── cabin / roof: raked, tapered greenhouse (sleeker, lower) ──
+  const roofBaseY=-h*0.24, roofTopY=-h*0.56;
+  const rbw=w*0.5*cab, rtw=w*0.5*cab*0.80;          // narrower at the top = raked roof
+  const rg=c.createLinearGradient(0,roofTopY,0,roofBaseY);
+  rg.addColorStop(0, shadeHex(sc.roof,0.30)); rg.addColorStop(1, sc.roof);
   c.fillStyle=rg;
-  c.beginPath(); c.roundRect(-w*0.5*cab, -h*0.62, w*cab, h*0.40, [7*rnd,7*rnd,2,2]); c.fill();
+  c.beginPath(); c.moveTo(-rbw,roofBaseY); c.lineTo(-rtw,roofTopY); c.lineTo(rtw,roofTopY); c.lineTo(rbw,roofBaseY); c.closePath(); c.fill();
 
-  // ── rear window with gradient + glass sheen + defroster ──
-  const gg=c.createLinearGradient(0,-h*0.56,0,-h*0.30);
+  // ── rear window: tapered glass that follows the roofline ──
+  const gbY=-h*0.27, gtY=-h*0.52, gbw=rbw-w*0.06, gtw=rtw-w*0.04;
+  const gg=c.createLinearGradient(0,gtY,0,gbY);
   gg.addColorStop(0, shadeHex(sc.glass,0.10)); gg.addColorStop(1, shadeHex(sc.glass,-0.35));
   c.fillStyle=gg; c.globalAlpha=.92;
-  c.beginPath(); c.roundRect(-w*0.5*cab+w*0.05, -h*0.56, w*cab-w*0.10, h*0.26, 3); c.fill();
+  c.beginPath(); c.moveTo(-gbw,gbY); c.lineTo(-gtw,gtY); c.lineTo(gtw,gtY); c.lineTo(gbw,gbY); c.closePath(); c.fill();
   c.globalAlpha=1;
   if(detail){
     c.globalAlpha=.22; c.fillStyle='#ffffff';
-    c.beginPath(); c.moveTo(-w*0.5*cab+w*0.08,-h*0.55); c.lineTo(-w*0.5*cab+w*0.22,-h*0.55); c.lineTo(-w*0.5*cab+w*0.10,-h*0.32); c.lineTo(-w*0.5*cab+w*0.02,-h*0.32); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-gtw+w*0.03,gtY); c.lineTo(-gtw+w*0.14,gtY); c.lineTo(-gbw+w*0.07,gbY); c.lineTo(-gbw-w*0.02,gbY); c.closePath(); c.fill();
     c.globalAlpha=1;
     c.strokeStyle='rgba(0,0,0,.13)'; c.lineWidth=1;
-    for(let i=1;i<=2;i++){ const yy=-h*0.52+i*h*0.07; c.beginPath(); c.moveTo(-w*0.5*cab+w*0.06,yy); c.lineTo(w*0.5*cab-w*0.06,yy); c.stroke(); }
+    for(let i=1;i<=2;i++){ const yy=gtY+(gbY-gtY)*(i/3), ww=(rtw+(rbw-rtw)*(i/3))-w*0.06; c.beginPath(); c.moveTo(-ww,yy); c.lineTo(ww,yy); c.stroke(); }
   }
 
   // belt-line + chrome trim strip
@@ -496,12 +502,13 @@ function drawCarRear(c, cx, cy, scale, sc, lean=0, brake=0, front=false){
   }
 
   // ── signature features ──
-  if(sc.feat==='rack'){            // NIVA roof rack
+  if(sc.feat==='rack'){            // NIVA roof rack — sits on the roof crown
+    const ry=roofTopY;
     c.strokeStyle='#222'; c.lineWidth=Math.max(1,2*scale);
     c.beginPath();
-    c.moveTo(-w*0.40,-h*0.62); c.lineTo(-w*0.40,-h*0.69); c.lineTo(w*0.40,-h*0.69); c.lineTo(w*0.40,-h*0.62); c.stroke();
-    c.beginPath(); c.moveTo(-w*0.18,-h*0.69); c.lineTo(-w*0.18,-h*0.62);
-    c.moveTo(w*0.18,-h*0.69); c.lineTo(w*0.18,-h*0.62); c.stroke();
+    c.moveTo(-rtw,ry); c.lineTo(-rtw,ry-h*0.09); c.lineTo(rtw,ry-h*0.09); c.lineTo(rtw,ry); c.stroke();
+    c.beginPath(); c.moveTo(-rtw*0.45,ry-h*0.09); c.lineTo(-rtw*0.45,ry);
+    c.moveTo(rtw*0.45,ry-h*0.09); c.lineTo(rtw*0.45,ry); c.stroke();
   }
   if(sc.feat==='vents'){           // ZAPOROZHETS rear air intakes
     c.fillStyle='#161616';
@@ -646,7 +653,7 @@ function drawBusRear(c,cx,cy,scale,sc,brake=0){
 function drawVehicle(car, sx, sy, scale){
   if(car.kind==='truck'){ drawTruckRear(ctx, sx, sy-92*scale*0.40, scale, car.sc, car.brake||0); }
   else if(car.kind==='bus'){ drawBusRear(ctx, sx, sy-96*scale*0.40, scale, car.sc, car.brake||0); }
-  else { const ch=54*scale*(car.sc.h||1); drawCarRear(ctx, sx, sy-ch*0.40, scale, car.sc, 0, car.brake||0, !!car.oncoming); }
+  else { const ch=49*scale*(car.sc.h||1); drawCarRear(ctx, sx, sy-ch*0.40, scale, car.sc, 0, car.brake||0, !!car.oncoming); }
 }
 
 // ── Car select cards (rear-view preview) ──
@@ -695,8 +702,8 @@ const ROAD_LINE={
 // ── Track definitions (data-driven; Step 8 refines layouts/difficulty) ──
 const TRACKS=[
   {
-    id:'steppe', name:'STEPPE HIGHWAY', tag:'Flat · fast', sun:true,
-    trafficDensity:1.25, fog:0.0, oncoming:0.6,
+    id:'steppe', name:'STEPPE HIGHWAY', tag:'Flat · fast · 2-way', sun:true,
+    trafficDensity:1.25, fog:0.0, oncoming:0.3,
     sky:['#20304e','#5a6e7e','#b59a78'],
     col:{
       light:{road:'#454545',grass:'#3a5a22',rumble:'#c0392b',lane:'#e8d5a3'},
@@ -725,7 +732,7 @@ const TRACKS=[
     }
   },
   {
-    id:'ural', name:'URAL MOUNTAINS', tag:'Steep · twisty · night rain', sun:false,
+    id:'ural', name:'URAL MOUNTAINS', tag:'Twisty · night rain · 1-way', sun:false,
     trafficDensity:0.8, fog:0.5, time:'night', weather:'rain',
     sky:['#070b18','#0f1c33','#243349'],
     col:{
@@ -756,8 +763,8 @@ const TRACKS=[
     }
   },
   {
-    id:'winter', name:'WINTER PASS', tag:'Snow · dusk · sweeping', sun:false,
-    trafficDensity:1.0, fog:0.55, weather:'snow', snowCaps:true, oncoming:0.35, time:'dusk',
+    id:'winter', name:'WINTER PASS', tag:'Snow · dusk · 1-way', sun:false,
+    trafficDensity:1.0, fog:0.55, weather:'snow', snowCaps:true, time:'dusk',
     sky:['#46415f','#8a7f92','#e2c6b4'],
     col:{
       light:{road:'#5a5a5e',grass:'#dfe8ee',rumble:'#c0392b',lane:'#9aa6b0'},
@@ -780,6 +787,36 @@ const TRACKS=[
       addCurve(L.LONG,  C.EASY,  Hl.MEDIUM);
       addHill (L.MEDIUM,-Hl.MEDIUM);
       addCurve(L.LONG, -C.MEDIUM,Hl.NONE);
+      addStraight(L.LONG);
+    }
+  },
+  {
+    id:'city', name:'CITY STREETS', tag:'Urban · junctions', sun:true,
+    trafficDensity:1.5, fog:0.08, time:'day', junctions:true,
+    sky:['#28406a','#6f86a4','#c2c6c4'],
+    col:{
+      light:{road:'#3f3f44',grass:'#6a6a6e',rumble:'#e8c24a',lane:'#e8e8e8'},   // grey pavement shoulders
+      dark :{road:'#37373c',grass:'#5e5e62',rumble:'#2a2a2a',lane:''},
+    },
+    scenery:{ poles:true, items:[
+      {type:'building',p:0.16,off:[1.25,2.2]},
+      {type:'tower',   p:0.07,off:[2.0,3.2]},
+      {type:'building',p:0.10,off:[2.4,3.4]},
+    ]},
+    bridges:[[0.40,60]],
+    build(){
+      const L=ROAD.LENGTH,C=ROAD.CURVE,Hl=ROAD.HILL;
+      addStraight(L.MEDIUM);
+      addCurve(L.SHORT,  C.HARD,  Hl.NONE);
+      addStraight(L.LONG);
+      addCurve(L.SHORT, -C.HARD,  Hl.NONE);
+      addStraight(L.MEDIUM);
+      addCurve(L.MEDIUM, C.MEDIUM,Hl.LOW);
+      addHill (L.SHORT, -Hl.LOW);
+      addStraight(L.LONG);
+      addCurve(L.SHORT, -C.HARD,  Hl.NONE);
+      addStraight(L.MEDIUM);
+      addCurve(L.SHORT,  C.HARD,  Hl.NONE);
       addStraight(L.LONG);
     }
   },
@@ -833,8 +870,25 @@ function buildTrack(idx){
   theme.build();
   populateScenery(theme);
   markBridges(theme);
+  markJunctions(theme);
   decorateSurface(theme);
   trackLength = segments.length*segmentLength;
+}
+
+// ── Side-road junctions (City): paved aprons where cross-streets meet the road ──
+let junctions=[];
+function markJunctions(t){
+  junctions=[];
+  if(!t.junctions) return;
+  const n=segments.length, count=10, runLen=9;
+  for(let k=0;k<count;k++){
+    const start=Math.floor(n*(0.08 + k*0.88/count));
+    if(start*segmentLength < segmentLength*160) continue;   // keep the start runway clear
+    const side=(k%2===0)?1:-1;
+    let ok=false;
+    for(let i=start;i<start+runLen && i<n;i++){ if(segments[i].bridge) continue; segments[i].junction={side}; segments[i].sprites.length=0; ok=true; }
+    if(ok) junctions.push({z:start*segmentLength, side});
+  }
 }
 
 // ── Bridges: flag stretches of road as river crossings ──
@@ -865,6 +919,7 @@ function decorateSurface(t){
 // ── Roadside scenery (static billboards beside the road) ──
 const SCN_WALLS=['#8b6914','#7a3030','#3a5a7a','#5a5a4a','#6a4a30'];
 const SCN_ROOFS=['#5a2020','#4a1a10','#2a3a20','#503010'];
+const BLD_WALLS=['#6b7079','#7a6a5a','#8a8276','#5f6b78','#7c7c84','#6a5f55'];   // concrete/panel tower walls
 function populateScenery(t){
   const cfg=t.scenery;
   for(let i=0;i<segments.length;i++){
@@ -879,12 +934,15 @@ function populateScenery(t){
         const off=s*(it.off[0]+Math.random()*(it.off[1]-it.off[0]));
         const sp={type:it.type, offset:off};
         if(it.type==='house'){ sp.c1=SCN_WALLS[(Math.random()*SCN_WALLS.length)|0]; sp.c2=SCN_ROOFS[(Math.random()*SCN_ROOFS.length)|0]; sp.flag=Math.random()<0.6; }
+        if(it.type==='building'||it.type==='tower'){ sp.c1=BLD_WALLS[(Math.random()*BLD_WALLS.length)|0]; sp.floors=(it.type==='tower'?9:5)+(Math.random()*4|0); sp.cols=2+(Math.random()*2|0); sp.lit=Math.random()*999|0; }
         seg.sprites.push(sp);
       }
     }
   }
 }
-const SCN_MULT={pine:1.5, tree:1.35, pole:0.55, bush:0.75, hay:0.95, sunflower:0.8, rock:0.6, house:2.3};
+const SCN_MULT={pine:1.5, tree:1.35, pole:0.55, bush:0.75, hay:0.95, sunflower:0.8, rock:0.6, house:2.3, building:3.0, tower:3.8};
+// drawn half-width as a fraction of `pix` — used to keep every sprite's inner edge off the road
+const SCN_HALF={pine:0.5, tree:0.66, pole:0.34, bush:0.5, hay:0.5, sunflower:0.45, rock:0.5, house:0.56, building:0.5, tower:0.34};
 function drawScenery(sp, cx, by, s){
   const c=ctx;
   switch(sp.type){
@@ -970,6 +1028,30 @@ function drawScenery(sp, cx, by, s){
       if(sp.flag){ c.fillStyle='rgba(210,210,210,.25)'; c.beginPath(); c.arc(x+w*0.71,y-h*0.42,w*0.09,0,Math.PI*2); c.fill(); }
       break;
     }
+    case 'building':
+    case 'tower': {
+      const w=s*(sp.type==='tower'?0.62:0.9), h=s*(sp.type==='tower'?2.6:1.7), x=cx-w/2, y=by-h;
+      c.fillStyle='rgba(0,0,0,.22)'; c.fillRect(x+w*0.10,y+h*0.04,w,h);        // drop shadow
+      const g=c.createLinearGradient(x,0,x+w,0);
+      g.addColorStop(0,shadeHex(sp.c1,0.12)); g.addColorStop(1,shadeHex(sp.c1,-0.18));
+      c.fillStyle=g; c.fillRect(x,y,w,h);                                       // facade
+      c.fillStyle='rgba(255,255,255,.10)'; c.fillRect(x,y,w*0.18,h);            // sun side
+      c.fillStyle=shadeHex(sp.c1,-0.30); c.fillRect(x,y-h*0.02,w,h*0.03);       // parapet
+      // window grid (lit/unlit), stable per building via sp.lit seed
+      const floors=sp.floors||5, cols=(sp.cols||2)+1, ww=w/(cols*2), wh=h/(floors*1.7);
+      let seed=sp.lit||7;
+      for(let fl=0; fl<floors; fl++){
+        for(let cl=0; cl<cols; cl++){
+          seed=(seed*1103515245+12345)&0x7fffffff;
+          const wx=x+w*0.12+cl*(w*0.76/cols), wy=y+h*0.06+fl*(h*0.9/floors);
+          c.fillStyle=(seed%5===0)?'#ffe9a8':'#1b2330';                          // ~1 in 5 lit
+          c.fillRect(wx,wy,ww,wh);
+        }
+      }
+      if(sp.type==='tower'){ c.fillStyle='#444'; c.fillRect(cx-w*0.03,y-h*0.06,w*0.06,h*0.06);   // rooftop antenna
+        c.fillStyle='#e74c3c'; c.fillRect(cx-w*0.02,y-h*0.06,w*0.04,h*0.012); }                   // aviation light
+      break;
+    }
   }
 }
 function findSegment(z){ return segments[Math.floor(z/segmentLength)%segments.length]; }
@@ -1010,6 +1092,16 @@ function resetCars(){
       cars.push({offset, z, speed:sp, baseSpeed:sp, sc, kind:'car', hit:0.42, brake:0, oncoming:true, onSpeed:sp});
     }
   }
+  // merging traffic — cars joining the road from side-street junctions (City)
+  for(const j of junctions){
+    if(Math.random()<0.7){
+      const sc=CARS[(Math.random()*CARS.length)|0];
+      const frac=0.4+Math.random()*0.25, sp=maxSpeed*frac;
+      const onLane=j.side<0 ? -0.3-Math.random()*0.2 : 0.5-Math.random()*0.2;   // lane it merges into
+      cars.push({offset:j.side*1.7, z:(j.z+segmentLength*4)%trackLength, speed:maxSpeed*0.18, baseSpeed:sp,
+                 sc, kind:'car', hit:0.45, brake:0.6, targetOffset:onLane, laneTimer:6+Math.random()*5, merging:true});
+    }
+  }
 }
 function updateCars(dt){
   const lo=laneFloor();
@@ -1024,23 +1116,42 @@ function updateCars(dt){
       car.speed=car.onSpeed; car.brake=0;
       continue;
     }
+    const merging=car.merging;
     let sp=car.baseSpeed, slowing=false;
+    // car-following: never overtake/overlap a vehicle ahead in the same lane
+    let leadGap=Infinity, leadSp=sp;
+    for(const o of cars){
+      if(o===car || o.oncoming) continue;
+      let g=o.z-car.z; if(g<0) g+=trackLength;
+      if(g>0 && g<segmentLength*6 && Math.abs(o.offset-car.offset)<0.34 && g<leadGap){ leadGap=g; leadSp=o.speed||o.baseSpeed; }
+    }
+    if(leadGap<segmentLength*2.6){ sp=Math.min(sp, leadSp*0.95); slowing=true; }
     // never rear-end the player: a car just behind, in the player's lane, eases to the player's speed
     let behind = position - car.z; if(behind<0) behind+=trackLength;
     if(behind>0 && behind < segmentLength*5 && Math.abs(car.offset-playerX)<0.5){
       sp=Math.min(sp, Math.max(0, speed*0.97)); slowing=true;
     }
     car.speed=sp;
-    car.brake = (slowing && sp < car.baseSpeed*0.9) ? 0.85 : 0;   // brake lights when easing off
+    car.brake = merging ? 0.6 : ((slowing && sp < car.baseSpeed*0.9) ? 0.85 : 0);   // brake lights easing off / merging
     car.z=(car.z + sp*dt) % trackLength;
-    // lazy lane changes
+    // lazy lane changes — only into a clear lane (merging cars keep their merge target)
     car.laneTimer-=dt;
-    if(car.laneTimer<=0){
+    if(!merging && car.laneTimer<=0){
       car.laneTimer=3+Math.random()*5;
-      if(Math.random()<0.55) car.targetOffset=Math.max(lo,Math.min(0.85, car.offset+(Math.random()<0.5?-1:1)*(0.35+Math.random()*0.45)));
+      if(Math.random()<0.55){
+        const target=Math.max(lo,Math.min(0.85, car.offset+(Math.random()<0.5?-1:1)*(0.35+Math.random()*0.45)));
+        let clear=true;
+        for(const o of cars){
+          if(o===car || o.oncoming) continue;
+          let g=o.z-car.z; if(g>trackLength/2)g-=trackLength; if(g<-trackLength/2)g+=trackLength;
+          if(Math.abs(g)<segmentLength*3.5 && Math.abs(o.offset-target)<0.3){ clear=false; break; }
+        }
+        if(clear) car.targetOffset=target;
+      }
     }
     const step=dt*0.5;
     car.offset += Math.max(-step,Math.min(step, car.targetOffset-car.offset));
+    if(merging && Math.abs(car.offset-car.targetOffset)<0.06) car.merging=false;   // finished joining the road
   }
 }
 function assignCarsToSegments(){
@@ -1068,49 +1179,81 @@ function checkCollision(){
   return null;
 }
 
-// ── Weather: falling snow (Winter Pass) or rain (Ural) ──
-let snow=[];
-function mkFlake(y){ return {x:Math.random()*W, y, vy:30+Math.random()*70, vx:(Math.random()-0.5)*22, r:1+Math.random()*2.3, ph:Math.random()*Math.PI*2}; }
-function mkDrop(y){ return {x:Math.random()*W, y, vy:520+Math.random()*340, vx:-(40+Math.random()*40), len:8+Math.random()*10}; }
+// ── Weather: layered snow (Winter Pass) or rain + splashes + lightning (Ural) ──
+let snow=[], splashes=[], lightning=0;
+// far flakes drift small & slow; near flakes are bigger & faster (parallax depth)
+function mkFlake(y, far){ return {x:Math.random()*W, y, vy:(far?14:32)+Math.random()*(far?20:64),
+  vx:(Math.random()-0.5)*(far?10:22), r:(far?0.6:1.3)+Math.random()*(far?0.9:2.2), ph:Math.random()*Math.PI*2, far:!!far}; }
+function mkDrop(y){ return {x:Math.random()*W, y, vy:520+Math.random()*360, vx:-(40+Math.random()*55), len:7+Math.random()*13, a:0.28+Math.random()*0.4}; }
 function initSnow(){
-  snow=[];
-  if(theme.weather==='snow') for(let i=0;i<80;i++)  snow.push(mkFlake(Math.random()*H));
-  else if(theme.weather==='rain') for(let i=0;i<150;i++) snow.push(mkDrop(Math.random()*H));
+  snow=[]; splashes=[]; lightning=0;
+  if(theme.weather==='snow'){
+    for(let i=0;i<66;i++) snow.push(mkFlake(Math.random()*H,false));
+    for(let i=0;i<54;i++) snow.push(mkFlake(Math.random()*H,true));
+  } else if(theme.weather==='rain'){
+    for(let i=0;i<170;i++) snow.push(mkDrop(Math.random()*H));
+  }
 }
 function updateSnow(dt){
+  const gust=Math.sin(runTime*0.7)*0.6 + Math.sin(runTime*1.9+1.3)*0.35;   // shared wind gusts
   if(theme.weather==='snow'){
-    const sp=0.5+(speed/maxSpeed)*1.6;          // faster fall at speed
+    const spd=0.5+(speed/maxSpeed)*1.6;
     for(const f of snow){
-      f.y+=f.vy*dt*sp;
-      f.x+=f.vx*dt + Math.sin(f.y*0.04+f.ph)*0.4;
+      f.y+=f.vy*dt*spd;
+      f.x+=(f.vx + gust*34*(f.far?0.5:1))*dt + Math.sin(f.y*0.04+f.ph)*0.55;
       if(f.y>H+4){ f.y=-4; f.x=Math.random()*W; }
-      if(f.x<0)f.x+=W; if(f.x>W)f.x-=W;
+      if(f.x<-6)f.x+=W+12; if(f.x>W+6)f.x-=W+12;
     }
   } else if(theme.weather==='rain'){
-    const sp=1+(speed/maxSpeed)*1.4;
+    const spd=1+(speed/maxSpeed)*1.5;
     for(const d of snow){
-      d.y+=d.vy*dt*sp; d.x+=d.vx*dt;
-      if(d.y>H+12){ d.y=-12; d.x=Math.random()*W; }
-      if(d.x<0)d.x+=W; if(d.x>W)d.x-=W;
+      d.y+=d.vy*dt*spd; d.x+=(d.vx + gust*45)*dt;
+      if(d.y>H+12){
+        if(Math.random()<0.45) splashes.push({x:d.x, y:H*0.55+Math.random()*(H*0.42), life:0, max:0.30});
+        d.y=-12; d.x=Math.random()*W;
+      }
+      if(d.x<-8)d.x+=W+16; if(d.x>W+8)d.x-=W+16;
     }
+    if(Math.random()<0.5) splashes.push({x:Math.random()*W, y:H*0.55+Math.random()*(H*0.42), life:0, max:0.32});
+    if(theme.time==='night' && lightning<=0 && Math.random()<0.0045){ lightning=0.55; playThunder(); }
   }
+  if(lightning>0) lightning-=dt;
+  for(const s of splashes) s.life+=dt;
+  splashes=splashes.filter(s=>s.life<s.max);
 }
 function drawSnow(){
   if(theme.weather==='snow'){
-    ctx.fillStyle='rgba(255,255,255,.9)';
-    for(const f of snow){ ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2); ctx.fill(); }
+    for(const f of snow){
+      ctx.fillStyle=f.far?'rgba(232,238,245,0.5)':'rgba(255,255,255,0.92)';
+      ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2); ctx.fill();
+    }
   } else if(theme.weather==='rain'){
-    ctx.strokeStyle='rgba(175,195,225,0.5)'; ctx.lineWidth=1;
-    for(const d of snow){ ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-d.vx*0.018, d.y+d.len); ctx.stroke(); }
+    ctx.lineWidth=1;
+    for(const d of snow){
+      ctx.strokeStyle='rgba(178,198,228,'+d.a+')';
+      ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-d.vx*0.016, d.y+d.len); ctx.stroke();
+    }
+    for(const s of splashes){                       // expanding ripple where a drop lands
+      const k=s.life/s.max, rr=1+k*4;
+      ctx.strokeStyle='rgba(195,210,235,'+(0.5*(1-k))+')';
+      ctx.beginPath(); ctx.ellipse(s.x,s.y,rr,rr*0.4,0,0,Math.PI*2); ctx.stroke();
+    }
   }
+}
+function drawLightning(){
+  if(lightning>0){ ctx.fillStyle='rgba(225,232,255,'+(lightning*0.55)+')'; ctx.fillRect(0,0,W,H); }
 }
 // wet-road sheen + spray under rain (drawn over the tarmac)
 function drawWetSheen(maxy){
   const top=Math.max(0,maxy);
-  ctx.fillStyle='rgba(18,24,40,0.16)'; ctx.fillRect(0,top,W,H-top);          // darker, cooler tarmac
+  ctx.fillStyle='rgba(18,24,40,0.18)'; ctx.fillRect(0,top,W,H-top);          // darker, cooler tarmac
   const g=ctx.createLinearGradient(W/2-46,0,W/2+46,0);                       // central specular reflection
-  g.addColorStop(0,'rgba(185,205,235,0)'); g.addColorStop(0.5,'rgba(185,205,235,0.12)'); g.addColorStop(1,'rgba(185,205,235,0)');
+  g.addColorStop(0,'rgba(185,205,235,0)'); g.addColorStop(0.5,'rgba(185,205,235,0.13)'); g.addColorStop(1,'rgba(185,205,235,0)');
   ctx.fillStyle=g; ctx.fillRect(W/2-46,top,92,H-top);
+  // faint mist/spray rising off the road
+  const m=ctx.createLinearGradient(0,H,0,H-60);
+  m.addColorStop(0,'rgba(170,185,210,0.12)'); m.addColorStop(1,'rgba(170,185,210,0)');
+  ctx.fillStyle=m; ctx.fillRect(0,H-60,W,60);
 }
 // dusk/night darkening (heavier on the ground than the sky)
 function applyTimeLighting(maxy){
@@ -1362,10 +1505,18 @@ function drawSegment(seg){
   // side band (grass, or river water on a bridge)
   ctx.fillStyle=color.grass;
   ctx.fillRect(0, y2, W, y1-y2);
-  // rumble strips (red/white kerb)
+  // side-road apron at junctions — pave over the shoulder so a cross-street meets the road
+  const jSide = seg.junction ? seg.junction.side : 0;
+  if(jSide){
+    const ix1=jSide<0?x1-w1:x1+w1, ix2=jSide<0?x2-w2:x2+w2, outer=jSide<0?-10:W+10;
+    polygon(ix1,y1, outer,y1, outer,y2, ix2,y2, color.road);
+    if(seg.light){ ctx.strokeStyle=color.lane||'#e8e8e8'; ctx.lineWidth=2;   // dashed centre of the side street
+      const my=(y1+y2)/2; ctx.beginPath(); ctx.moveTo(ix1,my); ctx.lineTo(outer,my); ctx.stroke(); }
+  }
+  // rumble strips (red/white kerb) — opened on a junction side
   const r1=w1*0.5, r2=w2*0.5;
-  polygon(x1-w1-r1,y1, x1-w1,y1, x2-w2,y2, x2-w2-r2,y2, color.rumble);
-  polygon(x1+w1+r1,y1, x1+w1,y1, x2+w2,y2, x2+w2+r2,y2, color.rumble);
+  if(jSide>=0) polygon(x1-w1-r1,y1, x1-w1,y1, x2-w2,y2, x2-w2-r2,y2, color.rumble);
+  if(jSide<=0) polygon(x1+w1+r1,y1, x1+w1,y1, x2+w2,y2, x2+w2+r2,y2, color.rumble);
   // road surface
   polygon(x1-w1,y1, x1+w1,y1, x2+w2,y2, x2-w2,y2, color.road);
 
@@ -1387,12 +1538,10 @@ function drawSegment(seg){
       stripe(cf,0.035, laneCol);
     }
   }
-  // solid edge lines (both bands → continuous) + crisp road/kerb boundary
+  // solid edge lines (both bands → continuous) + crisp road/kerb boundary; opened on a junction side
   const ec = seg.bridge ? ROAD_LINE.bridgeEdge : (seg.light?ROAD_LINE.edgeLight:ROAD_LINE.edgeDark);
-  stripe(-0.94,0.028, ec);
-  stripe( 0.94,0.028, ec);
-  stripe(-1.0,0.012, ROAD_LINE.wear);
-  stripe( 1.0,0.012, ROAD_LINE.wear);
+  if(jSide>=0){ stripe(-0.94,0.028, ec); stripe(-1.0,0.012, ROAD_LINE.wear); }
+  if(jSide<=0){ stripe( 0.94,0.028, ec); stripe( 1.0,0.012, ROAD_LINE.wear); }
 
   // bridge guardrails (raised parapets along both deck edges)
   if(seg.bridge){
@@ -1457,7 +1606,7 @@ function drawSky(hShift=0){
       ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); }
   }
   // ── celestial body (sun / pale sun / moon) ──
-  if(theme.id==='steppe'){
+  if(theme.sun && time==='day'){
     const sx=W*0.64 - bgScroll*0.05%W, sy=horizon-118;
     const gr=ctx.createRadialGradient(sx,sy,4,sx,sy,80);
     gr.addColorStop(0,'rgba(255,240,205,.9)'); gr.addColorStop(0.3,'rgba(255,225,170,.5)'); gr.addColorStop(1,'rgba(255,210,150,0)');
@@ -1567,7 +1716,7 @@ function updateScoring(dt, playerSeg){
     const lat=Math.abs(playerX-car.offset);
     if(car.oncoming){
       if(!car.nm && Math.abs(g)<segmentLength*1.6 && lat<0.9 && lat>0.5){
-        car.nm=true; addCombo(); award(70,'NEAR MISS',W/2,H*0.42,'#7af0ff'); nitro=Math.min(1,nitro+0.12);
+        car.nm=true; addCombo(); award(70,'NEAR MISS',W/2,H*0.42,'#7af0ff'); nitro=Math.min(1,nitro+0.12); playWhoosh(1);
       }
       if(Math.abs(g)>segmentLength*3) car.nm=false;
       continue;
@@ -1579,6 +1728,7 @@ function updateScoring(dt, playerSeg){
       addCombo();
       award(base+(near?40:0), near?'NEAR MISS':'OVERTAKE', W/2, H*0.45, near?'#7af0ff':'#9be86a');
       if(near) nitro=Math.min(1,nitro+0.1);
+      playWhoosh(near?1:0.5);
       car.minLat=undefined;
     }
     if(Math.abs(g)<segmentLength*2.5) car.minLat=Math.min(car.minLat===undefined?9:car.minLat, lat);
@@ -1729,7 +1879,7 @@ function update(dt){
   gear=gearFor(Math.min(1,frac));
   const glo=GEAR_BOUND[gear-1], ghi=GEAR_BOUND[gear];
   rpm=0.25+0.75*Math.max(0,Math.min(1,(frac-glo)/(ghi-glo)));
-  if(gear>prevGear) shiftFlash=0.35;            // brief upshift flash on the tacho
+  if(gear>prevGear){ shiftFlash=0.35; playShift(); }   // brief upshift flash + blip
   prevGear=gear;
   if(shiftFlash>0) shiftFlash=Math.max(0,shiftFlash-dt);
 
@@ -1816,13 +1966,18 @@ function render(){
     // roadside scenery first (sits behind on-road cars)
     for(const sp of seg.sprites){
       const sScale=seg.p1.screen.scale; if(sScale<=0) continue;
-      const roadScrW=seg.p1.screen.w;
-      const sx=seg.p1.screen.x + sScale*sp.offset*roadWidth*W/2;
+      const roadScrW=seg.p1.screen.w;        // half the road width in px (== 1 offset unit)
       const sy=seg.p1.screen.y;
-      if(sx<-W||sx>2*W) continue;
       let pix=roadScrW*(SCN_MULT[sp.type]||1);
       pix=Math.min(pix, W*4);
       if(pix<1.5) continue;
+      // push the sprite outward so its inner edge always clears the tarmac (never on the road)
+      const side=sp.offset<0?-1:1;
+      const halfPx=pix*(SCN_HALF[sp.type]||0.5);
+      const minDist=roadScrW*1.08 + halfPx;
+      const dist=Math.max(Math.abs(sp.offset)*roadScrW, minDist);
+      const sx=seg.p1.screen.x + side*dist;
+      if(sx<-W||sx>2*W) continue;
       ctx.save();
       ctx.beginPath(); ctx.rect(0,0,W,seg.clip); ctx.clip();
       drawScenery(sp, sx, sy, pix);
@@ -1835,7 +1990,7 @@ function render(){
       const sx=interpolate(seg.p1.screen.x, seg.p2.screen.x, car.percent) + sScale*car.offset*roadWidth*W/2;
       const sy=interpolate(seg.p1.screen.y, seg.p2.screen.y, car.percent);
       const carPixW=(2*roadScrW)/3.2;
-      let drawScale=carPixW/78;
+      let drawScale=carPixW/84;
       drawScale=Math.min(drawScale,1.4);
       if(drawScale<0.02) continue;
       ctx.save();
@@ -1878,6 +2033,7 @@ function render(){
   if(time==='night'||time==='dusk') drawHeadlights();
   if(theme.sun && time==='day') drawSunGlare();
   drawSnow();                              // rain / snow particles on top
+  drawLightning();                         // lightning flash (night rain)
   if(boosting){ // speed-rush blue vignette
     const vg=ctx.createRadialGradient(W/2,H*0.55,H*0.22,W/2,H*0.55,H*0.72);
     vg.addColorStop(0,'rgba(40,170,255,0)'); vg.addColorStop(1,'rgba(40,170,255,0.20)');
@@ -1917,6 +2073,7 @@ function hexA(hex,a){
 // ════════════════════════════════════════════════════════════════════
 let audioCtx=null, audioReady=false, muted=(localStorage.getItem('sovMuted')==='1');
 let masterGain, oscA, oscB, engFilter, engGain, noiseSrc, noiseFilter, noiseGain, gravelSrc, gravelFilter, gravelGain, noiseBuf;
+let whistleOsc, whistleGain, windSrc, windFilter, windGain;
 function makeNoise(){ const len=audioCtx.sampleRate*2, b=audioCtx.createBuffer(1,len,audioCtx.sampleRate), d=b.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1; return b; }
 function initAudio(){
   if(audioReady) return;
@@ -1941,6 +2098,15 @@ function initAudio(){
   gravelFilter=audioCtx.createBiquadFilter(); gravelFilter.type='highpass'; gravelFilter.frequency.value=1600;
   gravelGain=audioCtx.createGain(); gravelGain.gain.value=0;
   gravelSrc.connect(gravelFilter); gravelFilter.connect(gravelGain); gravelGain.connect(masterGain); gravelSrc.start();
+  // turbo whistle (high sine, only audible under boost)
+  whistleOsc=audioCtx.createOscillator(); whistleOsc.type='sine'; whistleOsc.frequency.value=1400;
+  whistleGain=audioCtx.createGain(); whistleGain.gain.value=0;
+  whistleOsc.connect(whistleGain); whistleGain.connect(masterGain); whistleOsc.start();
+  // wind rush (high-passed noise that grows with speed)
+  windSrc=audioCtx.createBufferSource(); windSrc.buffer=noiseBuf; windSrc.loop=true;
+  windFilter=audioCtx.createBiquadFilter(); windFilter.type='highpass'; windFilter.frequency.value=700;
+  windGain=audioCtx.createGain(); windGain.gain.value=0;
+  windSrc.connect(windFilter); windFilter.connect(windGain); windGain.connect(masterGain); windSrc.start();
   audioReady=true;
 }
 function ensureAudio(){ initAudio(); if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }
@@ -1962,10 +2128,17 @@ function updateEngineSound(){
     const screech=drift>0.3?Math.min(0.16,drift*0.16):0;       // tyre squeal while sliding
     gravelGain.gain.setTargetAtTime(Math.max(off?0.10+sp*0.12:0, screech), t, 0.04);
     gravelFilter.frequency.setTargetAtTime(screech>0?2600:1600, t, 0.06);
+    // turbo whistle rises while boosting
+    whistleGain.gain.setTargetAtTime(boosting?0.05:0, t, 0.05);
+    whistleOsc.frequency.setTargetAtTime(boosting?1500+sp*900:1200, t, 0.08);
+    // wind rush grows with speed
+    windGain.gain.setTargetAtTime(sp>0.45?(sp-0.45)*0.14:0, t, 0.08);
   } else {
     engGain.gain.setTargetAtTime(0,t,0.12);
     noiseGain.gain.setTargetAtTime(0,t,0.12);
     gravelGain.gain.setTargetAtTime(0,t,0.12);
+    whistleGain.gain.setTargetAtTime(0,t,0.12);
+    windGain.gain.setTargetAtTime(0,t,0.12);
   }
 }
 function playCrash(){
@@ -1978,6 +2151,35 @@ function playCrash(){
   const o=audioCtx.createOscillator(); o.type='triangle'; o.frequency.setValueAtTime(170,t); o.frequency.exponentialRampToValueAtTime(40,t+0.4);
   const og=audioCtx.createGain(); og.gain.setValueAtTime(0.5,t); og.gain.exponentialRampToValueAtTime(0.001,t+0.45);
   o.connect(og); og.connect(masterGain); o.start(t); o.stop(t+0.5);
+}
+// brief clutch/shift blip on each upshift
+function playShift(){
+  if(!audioReady||muted) return;
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator(); o.type='square'; o.frequency.setValueAtTime(420,t); o.frequency.exponentialRampToValueAtTime(150,t+0.09);
+  const g=audioCtx.createGain(); g.gain.setValueAtTime(0.10,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+  o.connect(g); g.connect(masterGain); o.start(t); o.stop(t+0.14);
+}
+// doppler whoosh as a vehicle flashes past (pitch falls); strength 0..1
+function playWhoosh(strength){
+  if(!audioReady||muted) return;
+  const t=audioCtx.currentTime, dur=0.34;
+  const n=audioCtx.createBufferSource(); n.buffer=noiseBuf;
+  const bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=1.1;
+  bp.frequency.setValueAtTime(1600,t); bp.frequency.exponentialRampToValueAtTime(420,t+dur);  // doppler down
+  const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.05+0.10*strength,t+0.08); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  n.connect(bp); bp.connect(g); g.connect(masterGain); n.start(t); n.stop(t+dur+0.02);
+}
+// low thunder rumble after a lightning flash
+function playThunder(){
+  if(!audioReady||muted) return;
+  const t=audioCtx.currentTime+0.15, dur=1.1;
+  const n=audioCtx.createBufferSource(); n.buffer=noiseBuf;
+  const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(220,t); lp.frequency.exponentialRampToValueAtTime(70,t+dur);
+  const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.22,t+0.18); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  n.connect(lp); lp.connect(g); g.connect(masterGain); n.start(t); n.stop(t+dur+0.05);
 }
 
 function drawPauseOverlay(){
@@ -2035,9 +2237,16 @@ function drawTrackThumb(cx,w,h,t){
   cx.beginPath(); cx.moveTo(w*0.5,h*0.56); cx.lineTo(w*0.5,h); cx.stroke(); cx.setLineDash([]);
   // theme sprite hints
   const hint=(t.scenery.items[0]||{}).type;
-  cx.fillStyle = hint==='pine' ? '#1c3f12' : hint==='sunflower' ? '#e8b820' : '#23501a';
-  cx.beginPath(); cx.arc(w*0.12,h*0.72,4,0,Math.PI*2); cx.fill();
-  cx.beginPath(); cx.arc(w*0.88,h*0.66,3,0,Math.PI*2); cx.fill();
+  if(hint==='building'){               // city skyline silhouette
+    cx.fillStyle='#5e6470';
+    cx.fillRect(w*0.04,h*0.30,w*0.12,h*0.30); cx.fillRect(w*0.17,h*0.42,w*0.09,h*0.18);
+    cx.fillRect(w*0.78,h*0.26,w*0.14,h*0.34); cx.fillRect(w*0.70,h*0.40,w*0.08,h*0.20);
+    cx.fillStyle='#ffe9a8'; cx.fillRect(w*0.07,h*0.34,w*0.02,h*0.03); cx.fillRect(w*0.82,h*0.30,w*0.02,h*0.03);
+  } else {
+    cx.fillStyle = hint==='pine' ? '#1c3f12' : hint==='sunflower' ? '#e8b820' : '#23501a';
+    cx.beginPath(); cx.arc(w*0.12,h*0.72,4,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.arc(w*0.88,h*0.66,3,0,Math.PI*2); cx.fill();
+  }
 }
 function rebuildTrackCards(){
   const grid=document.getElementById('trackGrid');
